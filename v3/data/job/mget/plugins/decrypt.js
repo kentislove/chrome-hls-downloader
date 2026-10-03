@@ -70,30 +70,49 @@ class DGet extends MyGet {
   async flush(segment, position) {
     if (segment.key) {
       const {href} = new URL(segment.key.uri, segment.base || segment.uri);
-      const r = await this.native(href, {
-        'credentials': 'include'
-      }, {
-        save: true
-      });
-      if (!r.ok) {
-        throw Error('BROKEN_KEY_STATUS_' + r.status);
-      }
+      this['key-cache'] = this['key-cache'] || new Map();
+      let importedKey = this['key-cache'].get(href);
+      if (!importedKey) {
+        const r = await this.native(href, {
+          'credentials': 'include'
+        }, {
+          save: true
+        });
+        if (!r.ok) {
+          throw Error('BROKEN_KEY_STATUS_' + r.status);
+        }
 
-      const value = await r.arrayBuffer();
+        const value = await r.arrayBuffer();
+        importedKey = await crypto.subtle.importKey('raw', value, {
+          name: 'AES-CBC',
+          length: 128
+        }, false, ['decrypt']);
+        this['key-cache'].set(href, importedKey);
+      }
 
       const {offsets, chunks} = DGet.merge(this['basic-cache'][position]);
 
       delete this['basic-cache'][position];
       const encrypted = await (new Blob(chunks)).arrayBuffer();
 
-      // const iv = segment.key?.iv?.buffer || new ArrayBuffer(16);
-
       let iv;
       if (segment.key?.iv) {
-        iv = segment.key?.iv?.buffer;
+        // m3u8-parser stores IV as Uint32Array(4). In little-endian architectures,
+        // buffer access inverts byte order unless explicitly written with Big-Endian.
+        if (segment.key.iv instanceof Uint32Array) {
+          const ivBytes = new Uint8Array(16);
+          const view = new DataView(ivBytes.buffer);
+          for (let i = 0; i < 4; i++) {
+            view.setUint32(i * 4, segment.key.iv[i], false); // Big-Endian
+          }
+          iv = ivBytes.buffer;
+        }
+        else {
+          iv = segment.key.iv.buffer || segment.key.iv;
+        }
       }
       // since the manifest does not provide an IV,
-      // HLS.js will automatically generate one based on the segment sequence number
+      // generate one based on the segment sequence number
       else {
         const e = new Uint8Array(16);
         for (let r = 12; r < 16; r++) {
@@ -102,15 +121,10 @@ class DGet extends MyGet {
         iv = e.buffer;
       }
 
-      const decrypted = await crypto.subtle.importKey('raw', value, {
+      const decrypted = await crypto.subtle.decrypt({
         name: 'AES-CBC',
-        length: 128
-      }, false, ['decrypt']).then(importedKey => {
-        return crypto.subtle.decrypt({
-          name: 'AES-CBC',
-          iv
-        }, importedKey, encrypted);
-      });
+        iv
+      }, importedKey, encrypted);
       // console.info('position mismatch', offsets[0], this['decrypted-offset']);
 
       // write to the original cache

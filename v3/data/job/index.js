@@ -29,7 +29,7 @@ const events = {
   after: new Set() // after download ends
 };
 
-document.title = 'Inspecting tab...';
+document.title = '正在掃描分頁媒體...';
 Promise.all([
   tabId ? extract.storage(tabId) : [],
   tabId ? extract.performance(tabId): [],
@@ -128,10 +128,8 @@ const download = async (segments, file, codec = '') => {
   const timingObjects = Object.entries(timelines);
 
   if (timingObjects.length > 1) {
-    const msg = `This M3U8 media file contains different timelines, each usually representing a separate piece of ` +
-      `media (short timelines are often ads). Choose the timeline you want to download. You can repeat the process ` +
-      `to download more timelines later. It's best to download each timeline separately, but you can also download ` +
-      `all segments into one file (though it might not play properly).`;
+    const msg = `此 M3U8 包含多個時間軸（常見於廣告插入或分段媒體），請選擇您要下載的時間軸。` +
+      `建議將各時間軸分開下載以獲得最佳相容性，您也可以合併下載為單一檔案。`;
 
     // select the longest timeline
     let suggested = 0;
@@ -142,14 +140,13 @@ const download = async (segments, file, codec = '') => {
         largestObject = a.length;
       }
     }
-    const selected = await self.prompt(msg + `
-
-${timingObjects.map(([id, a]) => {
-    return id + ' (includes ' + a.length + ' segments)';
-  }).join('\n')}`, {
-      ok: 'Select a Timeline',
-      extra: ['Download Each Separately', 'Ignore Timelines'],
-      no: 'Cancel',
+    const selected = await self.prompt(msg + `\n\n` +
+      timingObjects.map(([id, a]) => {
+        return id + ' (包含 ' + a.length + ' 個片段)';
+      }).join('\n'), {
+      ok: '下載選取的時間軸',
+      extra: ['個別分開下載所有時間軸', '合併下載 (忽略分軸)'],
+      no: '取消',
       value: suggested
     }, true);
 
@@ -225,11 +222,9 @@ ${timingObjects.map(([id, a]) => {
 
   // instead of breaking, let the user retry
   myGet.options['error-handler'] = (e, source, href) => {
-    return self.prompt(`Connection to the server is broken (${source} -> ${e.message})!
-
-Use the box below to update the URL`, {
-      ok: 'Retry',
-      no: 'Cancel',
+    return self.prompt(`伺服器連線中斷 (${source} -> ${e.message})！\n\n可在下方輸入框更新網址後重試：`, {
+      ok: '重試',
+      no: '取消',
       value: href
     }, true).then(v => {
       if (v) {
@@ -252,27 +247,27 @@ Use the box below to update the URL`, {
       if (myGet.sizes.has(0)) {
         const percent = stat.fetched / myGet.sizes.get(0) * 100;
         document.title =
-          percent.toFixed(1) + `% fetched [${MyGet.size(stat.fetched)}/${MyGet.size(myGet.sizes.get(0))}]` +
-          ` [Threads: ${myGet.actives}]`;
+          percent.toFixed(1) + `% 已下載 [${MyGet.size(stat.fetched)}/${MyGet.size(myGet.sizes.get(0))}]` +
+          ` [連線數: ${myGet.actives}]`;
 
         progress.value = stat.fetched;
         progress.max = myGet.sizes.get(0);
       }
       else {
-        document.title = MyGet.size(stat.fetched) + ' fetched...';
+        document.title = MyGet.size(stat.fetched) + ' 已下載...';
       }
     }
     // downloading multiple segment file
     else {
       document.title = (stat.current / stat.total * 100).toFixed(1) +
-        `% fetched [${stat.current}/${stat.total}] (${MyGet.size(stat.fetched)})` + ` [Threads: ${myGet.actives}]`;
+        `% 已下載 [${stat.current}/${stat.total}] (${MyGet.size(stat.fetched)})` + ` [連線數: ${myGet.actives}]`;
 
       progress.value = stat.current;
       progress.max = stat.total;
     }
     //
     if (self.aFile) {
-      document.title += ' Job [' + self.aFile.stat.index + '/' + self.aFile.stat.total + ']';
+      document.title += ' 任務 [' + self.aFile.stat.index + '/' + self.aFile.stat.total + ']';
     }
   }, 750);
 
@@ -284,7 +279,7 @@ Use the box below to update the URL`, {
     await myGet.fetch(segments);
     clearInterval(timer);
 
-    document.title = 'Done. Media is ready!';
+    document.title = '下載完成！媒體檔案已就緒';
     if ('download' in file) { // Firefox
       file.download(file.name);
     }
@@ -297,9 +292,7 @@ Use the box below to update the URL`, {
         if (input) {
           input.disabled = false;
           input.onclick = e => {
-            if (confirm(`Rename media from "${file.name}" to "${name}"?
-
--> This will overwrite an existing file with the same name.`)) {
+            if (confirm(`是否將媒體檔案從 "${file.name}" 重新命名為 "${name}"？\n\n注意：如果已有同名檔案將會被覆蓋。`)) {
               file.move(name).catch(e => self.notify(e.message));
               e.target.disabled = true;
             }
@@ -327,9 +320,9 @@ const setQueued = (div, queued) => {
     // keep the current labels so that they can be restored (they may be localized)
     download.dataset.label = download.value;
     q.dataset.label = q.value;
-    download.value = 'Start';
+    download.value = '開始下載';
     download.dataset.action = 'start';
-    q.value = 'Cancel Queue';
+    q.value = '取消排程';
     q.dataset.action = 'cancel';
   }
   else {
@@ -354,13 +347,13 @@ const setQueued = (div, queued) => {
     const now = Date.now();
     if (stamp && now - stamp < 1000) {
       stamp = 0;
-      if (queue.size && (e.isTrusted === false || confirm('Cancel all queued downloads?'))) {
+      if (queue.size && (e.isTrusted === false || confirm('確定要取消所有排程中的下載任務嗎？'))) {
         for (const [div, record] of queue) {
           record.controller.abort(Error('QUEUE_ABORT')); // rejects the unlimited promise
           setQueued(div, false);
         }
         queue.clear();
-        self.notify('Queue canceled');
+        self.notify('已取消所有排程任務');
       }
     }
     else {
@@ -381,7 +374,7 @@ const adjust = opts => {
     '_'
   );
   if (n !== name) {
-    msgs.push(`The file name "${name}" contains unsupported characters and is replaced by "${n}".`);
+    msgs.push(`檔案名稱 "${name}" 包含特殊或不支援的字元，已自動調整為 "${n}"。`);
     name = n;
   }
 
@@ -393,7 +386,7 @@ const adjust = opts => {
       exts.some(ext => /^\.[^.]{1,15}$/.test(ext) === false);
   });
   if (types.length && (!accept || invalid)) {
-    msgs.push('The requested file type filter is rejected by the file dialog and will be removed. The "All files" filter can then be used to select any file name.');
+    msgs.push('請求的檔案類型篩選被系統檔案對話框拒絕，已自動調整。可使用「所有檔案」篩選器選取任意檔名。');
     return {
       name,
       dropTypes: true,
@@ -436,15 +429,9 @@ const pickSaveFile = async opts => {
       const proposal = adjust(opts);
       try {
         // activating this dialog hands its user gesture over to the retried picker call below
-        const name = await self.prompt(proposal ? `The file dialog rejected this request.
-
-${proposal.msg}
-
-Update the file name and retry?` : `The file dialog request was aborted before it could be shown.
-
-Update the file name and retry?`, {
-          ok: 'Retry',
-          no: 'Cancel',
+        const name = await self.prompt(proposal ? `檔案儲存對話框被取消或拒絕。\n\n${proposal.msg}\n\n是否修改檔案名稱後重試？` : `檔案儲存對話框被中斷。\n\n是否修改檔案名稱後重試？`, {
+          ok: '重試',
+          no: '取消',
           value: proposal ? proposal.name : (opts.suggestedName || '')
         });
 
@@ -478,12 +465,10 @@ const run = async (div, picked, button) => {
     let file = picked || self.aFile;
     // ask user for picking
     if (!file) {
-      // example for failing download
-      // {suggestedName: 'x.mkv', types: [{description: 'V', accept: {'video/x-matroska': ['.verylongextensionfile']}}]}
       file = await pickSaveFile(opts);
     }
 
-    button.value = 'Processing...';
+    button.value = '正在處理中...';
 
     // run pre
     for (const callback of events.before) {
@@ -492,11 +477,11 @@ const run = async (div, picked, button) => {
 
     if (div.entry instanceof File) {
       await new Promise((resolve, reject) => {
-        document.title = 'Parsing M3U8 manifest ...';
+        document.title = '正在解析 M3U8 播放清單...';
         document.body.dataset.mode = 'parse';
         const reader = new FileReader();
         reader.onload = () => parse(reader.result, file, undefined, undefined, (segments, file, codec) => {
-          document.title = 'Downloading ' + segments[0].base;
+          document.title = '正在下載 ' + segments[0].base;
           return download(segments, file, codec);
         }).then(resolve, reject);
         reader.readAsText(div.entry, 'utf-8');
@@ -504,16 +489,16 @@ const run = async (div, picked, button) => {
     }
     else {
       if (helper.downloadable(div)) {
-        document.title = 'Downloading ' + div.entry.url;
+        document.title = '正在下載 ' + div.entry.url;
         await download([{
           uri: div.entry.url
         }], file);
       }
       else {
-        document.title = 'Parsing M3U8 manifest ...';
+        document.title = '正在解析 M3U8 播放清單...';
         document.body.dataset.mode = 'parse';
         await parse(div.entry.url, file, undefined, undefined, (segments, file, codec) => {
-          document.title = 'Downloading ' + segments[0].base;
+          document.title = '正在下載 ' + segments[0].base;
           return download(segments, file, codec);
         });
       }
@@ -525,7 +510,7 @@ const run = async (div, picked, button) => {
     // the user dismissed the file picker dialog; this is not an error
     if (e?.name === 'AbortError') {
       document.body.dataset.mode = 'ready';
-      self.notify('The file dialog was dismissed; press the download button to try again.', 5000);
+      self.notify('已取消檔案對話框；點擊下載按鈕可再次嘗試。', 5000);
     }
     else {
       div.classList.remove('done');
@@ -582,14 +567,14 @@ document.getElementById('hrefs').onsubmit = async e => {
 
       queue.set(div, record);
       setQueued(div, true);
-      self.notify('Press Start to begin. Press Esc twice to cancel all queued jobs.', 5000);
+      self.notify('點擊「開始下載」以啟動。連按兩次 Esc 可取消所有排程。', 5000);
       document.body.dataset.mode = 'ready';
     }
     catch (e) {
       // the user dismissed the file picker dialog; this is not an error
       if (e?.name === 'AbortError') {
         document.body.dataset.mode = 'ready';
-        self.notify('The file dialog was dismissed; press the queue button to try again.', 5000);
+        self.notify('已取消檔案對話框；點擊排程按鈕可再次嘗試。', 5000);
       }
       else {
         div.classList.remove('done');
@@ -619,3 +604,36 @@ document.getElementById('hrefs').onsubmit = async e => {
 
   run(div, null, button);
 };
+
+/* 手動輸入影片 / M3U8 網址事件監聽 */
+{
+  const input = document.getElementById('manual-url-input');
+  const btn = document.getElementById('manual-url-btn');
+  if (input && btn) {
+    const submitUrl = () => {
+      const raw = input.value.trim();
+      if (!raw) {
+        self.notify('請先輸入或貼上影片網址！', 2000);
+        input.focus();
+        return;
+      }
+      try {
+        const url = new URL(raw).href;
+        const entries = new Map();
+        entries.set(url, { url });
+        addEntries(entries);
+        input.value = '';
+        self.notify('已成功新增下載任務！', 2000);
+      } catch (e) {
+        self.notify('網址格式無效，請確認是否包含 http:// 或 https://', 3000);
+      }
+    };
+    btn.onclick = submitUrl;
+    input.onkeydown = e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitUrl();
+      }
+    };
+  }
+}

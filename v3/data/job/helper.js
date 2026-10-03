@@ -123,7 +123,7 @@ helper.downloadable = ({meta, entry}) => {
 helper.options = ({meta}) => {
   const options = {
     types: [{
-      description: 'Video or Audio Files'
+      description: '影片或音訊檔案'
     }]
   };
 
@@ -135,24 +135,29 @@ helper.options = ({meta}) => {
         'video/MP2T': ['.ts']
       };
     }
+    else if (df === 'mp4') {
+      options.types[0].accept = {
+        'video/mp4': ['.mp4']
+      };
+    }
     else {
       options.types[0].accept = {
         'video/x-matroska': ['.mkv']
       };
     }
     options.suggestedName =
-      (meta.gname || meta.name || 'Untitled') +
+      (meta.gname || meta.name || '未命名影片') +
       (meta.index ? (' - ' + meta.index) : '') +
       '.' + df;
   }
   else if (meta.ext === '') {
     options.types[0].accept = {
-      'video/x-matroska': ['.mkv']
+      'video/mp4': ['.mp4']
     };
     options.suggestedName =
-      (meta.gname || meta.name || 'Untitled') +
+      (meta.gname || meta.name || '未命名影片') +
       (meta.index ? (' - ' + meta.index) : '') +
-      '.mkv';
+      '.mp4';
   }
   else if (meta.ext) {
     if (meta.mime) {
@@ -161,7 +166,7 @@ helper.options = ({meta}) => {
       };
     }
     options.suggestedName =
-      (meta.gname || meta.name || 'Untitled') +
+      (meta.gname || meta.name || '未命名影片') +
       (meta.index ? (' - ' + meta.index) : '') +
       '.' + meta.ext;
   }

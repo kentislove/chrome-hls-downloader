@@ -18,7 +18,7 @@
 */
 
 chrome.storage.local.get({
-  'default-format': 'mkv'
+  'default-format': 'mp4'
 }).then(prefs => {
   document.getElementById('default-format').value = prefs['default-format'];
 });

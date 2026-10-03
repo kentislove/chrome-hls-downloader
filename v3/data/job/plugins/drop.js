@@ -92,7 +92,7 @@
         addEntries(links);
       }
       else {
-        self.notify('No link is detected!', 750);
+        self.notify('未偵測到任何有效連結！', 750);
       }
     }
   };

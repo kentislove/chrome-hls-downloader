@@ -23,9 +23,9 @@ const parse = async (manifest, file, href, codec, next) => {
       uri = new URL(manifest, href);
     }
     else {
-      href = await prompt(`What is the base URL for "${manifest}"`, {
-        ok: 'Set Base',
-        no: 'Abort'
+      href = await prompt(`請設定 "${manifest}" 的基礎網址 (Base URL)：`, {
+        ok: '設定基礎網址',
+        no: '取消'
       }, true);
       uri = new URL(manifest, href);
     }
@@ -144,7 +144,7 @@ const parse = async (manifest, file, href, codec, next) => {
       for (const playlist of playlists) {
         if (playlist.attributes && playlist.attributes.RESOLUTION) {
           msgs.push(
-            'Video [' +
+            '影片解析度 [' +
             playlist.attributes.RESOLUTION.width + ' × ' +
             playlist.attributes.RESOLUTION.height + ']   ' +
             trim(playlist.resolvedUri || playlist.uri)
@@ -159,8 +159,9 @@ const parse = async (manifest, file, href, codec, next) => {
             features.push(playlist.attributes?.BANDWIDTH);
           }
 
+          const groupType = playlist.group.type === 'AUDIO' ? '音訊軌' : playlist.group.type === 'SUBTITLES' ? '字幕軌' : playlist.group.type;
           msgs.push(
-            playlist.group.type.toLowerCase() + ' [' +
+            groupType + ' [' +
             features.join(' - ') + ']   ' +
             trim(playlist.resolvedUri || playlist.uri, 30)
           );
@@ -169,9 +170,9 @@ const parse = async (manifest, file, href, codec, next) => {
           msgs.push(trim(playlist.resolvedUri || playlist.uri));
         }
       }
-      n = (playlists.length > 1 ? await prompt('Select one stream:\n\n' + msgs.map((m, n) => n + '. ' + m).join('\n'), {
-        ok: 'Select Quality',
-        no: 'Abort',
+      n = (playlists.length > 1 ? await prompt('請選擇要下載的串流畫質：\n\n' + msgs.map((m, n) => n + '. ' + m).join('\n'), {
+        ok: '確定選擇畫質',
+        no: '取消',
         value: 0
       }, true) : 0);
     }
@@ -207,9 +208,9 @@ const parse = async (manifest, file, href, codec, next) => {
   if (segments.length) {
     // do we have a valid segment
     if (!href && segments[0].uri.startsWith('http') === false) {
-      href = await prompt(`What is the base URL for "${segments[0].uri}"`, {
-        ok: 'Set Base',
-        no: 'Abort'
+      href = await prompt(`請設定片段 "${segments[0].uri}" 的基礎網址 (Base URL)：`, {
+        ok: '設定基礎網址',
+        no: '取消'
       }, true);
     }
 

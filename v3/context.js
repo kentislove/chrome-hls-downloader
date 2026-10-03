@@ -28,30 +28,30 @@
     once.done = true;
 
     network.types({core: true, extra: true}).then(types => chrome.contextMenus.create({
-      title: 'Download with Live Stream Downloader',
+      title: '使用 HLS 下載器下載此連結',
       id: 'download-link',
       contexts: ['link'],
       targetUrlPatterns: types.map(s => '*://*/*.' + s + '*')
     }));
     chrome.contextMenus.create({
-      title: 'Download with Live Stream Downloader',
+      title: '使用 HLS 下載器下載此媒體',
       id: 'download-media',
       contexts: ['audio', 'video']
     });
     chrome.contextMenus.create({
-      title: 'Extract Links',
+      title: '擷取選取範圍中的影片連結',
       id: 'extract-links',
       contexts: ['selection']
     });
     chrome.contextMenus.create({
-      title: 'Clear Detected Media List',
+      title: '清除已偵測的媒體清單',
       id: 'clear',
       contexts: ['action'],
       documentUrlPatterns: ['*://*/*']
     });
     // the parent of the plugins menus (e.g. blob-detector); must be created synchronously
     chrome.contextMenus.create({
-      title: 'Detect Media',
+      title: '媒體偵測功能',
       id: 'detect-media-root',
       contexts: ['action'],
       documentUrlPatterns: ['*://*/*']
@@ -59,7 +59,7 @@
     chrome.storage.local.get({
       'detect-media': true
     }, prefs => chrome.contextMenus.create({
-      title: 'Enable',
+      title: '啟用媒體偵測',
       id: 'detect-media-enable',
       type: 'checkbox',
       checked: prefs['detect-media'],

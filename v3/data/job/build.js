@@ -231,8 +231,8 @@ const addEntries = async entries => {
       entry.blocked?.value ? entry.blocked.reason : (entry.url || 'N/A');
 
     clone.querySelector('input[data-id=copy]').onclick = e => navigator.clipboard.writeText(entry.url).then(() => {
-      e.target.value = 'Done';
-      setTimeout(() => e.target.value = 'Copy', 750);
+      e.target.value = '已複製';
+      setTimeout(() => e.target.value = '複製連結', 750);
     }).catch(e => alert(e.message));
 
     div.entry = entry;
@@ -250,7 +250,7 @@ const addEntries = async entries => {
     const c = document.getElementById('hrefs-container');
     c.scrollTop = c.scrollHeight;
 
-    document.title = `Adding ${counter} of ${entries.size} items...`;
+    document.title = `正在載入第 ${counter} / ${entries.size} 個媒體...`;
     if (counter % 10 === 0) {
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
@@ -258,5 +258,5 @@ const addEntries = async entries => {
   }
 
   document.body.dataset.mode = document.querySelector('form .entry') ? 'ready' : 'empty';
-  document.title = 'Download a Media from "' + (args.get('title') || 'New Tab') + '"';
+  document.title = '下載媒體 - ' + (args.get('title') || '新分頁');
 };

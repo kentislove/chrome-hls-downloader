@@ -28,7 +28,7 @@ chrome.storage.local.get({
 const changed = target => {
   chrome.storage.local.set({
     filename: target.value || '[meta.name]'
-  }).then(() => self.notify('Done, Reopen this window to apply', 2000));
+  }).then(() => self.notify('設定已儲存，請重新開啟此視窗套用', 2000));
 };
 
 {

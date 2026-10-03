@@ -1,0 +1,11 @@
+{
+  "app_name": {
+    "message": "HLS 串流影片下載器 (繁體中文版)"
+  },
+  "description": {
+    "message": "自動偵測並以多執行緒高速下載網頁上的 M3U8 HLS 串流影片至本機硬碟，支援 AES-128 加密串流解密"
+  },
+  "action_title": {
+    "message": "下載 HLS 串流影片"
+  }
+}

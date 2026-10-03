@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "version": "0.6.0",
-  "name": "Live Stream Downloader",
+  "name": "__MSG_app_name__",
   "description": "__MSG_description__",
-  "default_locale": "en",
+  "default_locale": "zh_TW",
   "permissions": [
     "storage",
     "contextMenus",
@@ -41,7 +41,7 @@
     "512": "data/icons/512.png"
   },
   "action": {
-    "default_title": "Download HLS Streams"
+    "default_title": "__MSG_action_title__"
   },
   "browser_specific_settings": {
     "gecko": {

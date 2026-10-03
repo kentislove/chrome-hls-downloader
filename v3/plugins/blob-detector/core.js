@@ -122,7 +122,7 @@ bbdetector.menu.create = async () => {
   const create = props => chrome.contextMenus.create(props, () => void chrome.runtime.lastError);
 
   create({
-    title: 'Improved Media Detection',
+    title: '進階深層媒體偵測',
     id: 'mime-watch-root',
     contexts: ['action'],
     documentUrlPatterns: ['*://*/*'],
@@ -130,7 +130,7 @@ bbdetector.menu.create = async () => {
     enabled: prefs['detect-media']
   });
   create({
-    title: 'Enabled',
+    title: '啟用進階偵測',
     id: 'mime-watch-toggle',
     type: 'checkbox',
     checked: prefs['mime-watch'],
@@ -139,7 +139,7 @@ bbdetector.menu.create = async () => {
     parentId: 'mime-watch-root'
   });
   create({
-    title: 'Scope',
+    title: '偵測範圍',
     id: 'mime-watch-scope-root',
     contexts: ['action'],
     documentUrlPatterns: ['*://*/*'],
@@ -147,7 +147,7 @@ bbdetector.menu.create = async () => {
     parentId: 'mime-watch-root'
   });
   create({
-    title: 'All Hosts',
+    title: '全部網站',
     id: 'mime-watch-scope-all',
     type: 'radio',
     checked: prefs['mime-watch-scope-mode'] === 'all',
@@ -156,7 +156,7 @@ bbdetector.menu.create = async () => {
     parentId: 'mime-watch-scope-root'
   });
   create({
-    title: 'Allow List Only',
+    title: '僅限允許清單',
     id: 'mime-watch-scope-allowlist',
     type: 'radio',
     checked: prefs['mime-watch-scope-mode'] === 'allowlist',
@@ -165,7 +165,7 @@ bbdetector.menu.create = async () => {
     parentId: 'mime-watch-scope-root'
   });
   create({
-    title: 'Allow List',
+    title: '允許清單管理',
     id: 'mime-watch-allowlist-root',
     contexts: ['action'],
     documentUrlPatterns: ['*://*/*'],
@@ -173,14 +173,14 @@ bbdetector.menu.create = async () => {
     parentId: 'mime-watch-root'
   });
   create({
-    title: 'Add Current Tab to Allow List',
+    title: '將當前網站加入允許清單',
     id: 'mime-watch-allowlist-add',
     contexts: ['action'],
     documentUrlPatterns: ['*://*/*'],
     parentId: 'mime-watch-allowlist-root'
   });
   create({
-    title: 'Remove Current Tab from Allow List',
+    title: '從允許清單中移除當前網站',
     id: 'mime-watch-allowlist-remove',
     contexts: ['action'],
     documentUrlPatterns: ['*://*/*'],
@@ -259,7 +259,7 @@ bbdetector.menu.onClick = (info, tab) => {
     }
     else {
       console.info('This page does not have valid hostname', host);
-      self.notify(tab.id, '!', 'This page does not have valid hostname');
+      self.notify(tab.id, '!', '此頁面沒有有效的主機名稱');
     }
   }
 };

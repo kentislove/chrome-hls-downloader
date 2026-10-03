@@ -23,7 +23,7 @@
 {
   const stop = e => {
     e.preventDefault();
-    e.returnValue = 'Downloading...';
+    e.returnValue = '正在下載影片中，確定要離開嗎？';
   };
   events.before.add(() => {
     addEventListener('beforeunload', stop);
@@ -40,7 +40,7 @@ const done = (success, done) => {
     if (success) {
       if (done) {
         const timeout = 5 * 1000;
-        self.notify('Closing after 5 seconds...', timeout);
+        self.notify('下載完成，5 秒後自動關閉視窗...', timeout);
         setTimeout(() => window.close(), timeout);
       }
     }
