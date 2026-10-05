@@ -69,13 +69,32 @@ const net = {
 };
 
 events.before.add(async o => {
-  const referer = o.initiator || args.get('href');
-  if (referer.startsWith('http')) {
+  let referer = o.initiator || args.get('href') || '';
+
+  // 智慧推導社群平台來源 (防止 CDN 回傳 403 Forbidden 拒絕連線)
+  if (!referer || referer.startsWith('http') === false) {
+    const url = o.url || '';
+    if (/tiktok\.com|tiktokcdn\.com/i.test(url)) {
+      referer = 'https://www.tiktok.com/';
+    } else if (/douyin\.com|douyinvod\.com/i.test(url)) {
+      referer = 'https://www.douyin.com/';
+    } else if (/instagram\.com|cdninstagram\.com/i.test(url)) {
+      referer = 'https://www.instagram.com/';
+    } else if (/facebook\.com|fbcdn\.net/i.test(url)) {
+      referer = 'https://www.facebook.com/';
+    }
+  }
+
+  if (referer && referer.startsWith('http')) {
     await net.add(referer);
   }
-  document.getElementById('referer').textContent = referer || 'Empty';
+  const el = document.getElementById('referer');
+  if (el) {
+    el.textContent = referer || 'Empty';
+  }
 });
 
 events.after.add(() => {
   net.remove();
 });
+

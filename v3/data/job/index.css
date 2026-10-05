@@ -379,3 +379,31 @@ body[data-mode="download"] #hrefs input[type="submit"] {
 .contents {
   display: contents;
 }
+
+/* 社群狀態標籤樣式 */
+.social-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  cursor: default;
+}
+.social-badge.logged-in {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+.social-badge.logged-out {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+.social-badge .dot {
+  font-size: 10px;
+}

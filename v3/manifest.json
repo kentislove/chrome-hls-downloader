@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "version": "0.6.0",
+  "version": "2.4.0",
   "name": "__MSG_app_name__",
   "description": "__MSG_description__",
   "default_locale": "zh_TW",
@@ -11,11 +11,26 @@
     "declarativeNetRequestWithHostAccess",
     "declarativeContent",
     "scripting",
-    "alarms"
+    "alarms",
+    "cookies",
+    "downloads"
   ],
 
   "host_permissions": [
+    "*://*.facebook.com/*",
+    "*://*.instagram.com/*",
     "*://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.instagram.com/*",
+        "*://*.facebook.com/*"
+      ],
+      "js": ["content_scripts/social_detector.js"],
+      "css": ["content_scripts/social_detector.css"],
+      "run_at": "document_idle"
+    }
   ],
   "homepage_url": "https://webextension.org/listing/hls-downloader.html",
   "background": {
@@ -27,6 +42,7 @@
       "plugins/blob-detector/tld.js",
       "plugins/blob-detector/core.js",
       "data/job/extract.js",
+      "social/session.js",
       "worker.js"
     ]
   },

@@ -1,11 +1,11 @@
 {
   "app_name": {
-    "message": "Live Stream Downloader"
+    "message": "HLS & Social Media Video Downloader (FB / IG / TikTok / M3U8)"
   },
   "description": {
-    "message": "Detect and Download M3U8 HLS Streams (HTTP Live Stream) in multiple threads to your local disk"
+    "message": "Detect and download M3U8 HLS streaming videos, plus Facebook, Instagram, and TikTok videos, photos, Reels, and Stories using active login sessions."
   },
   "action_title": {
-    "message": "Download HLS Streams"
+    "message": "Download HLS Streams & Social Media"
   }
 }

@@ -56,7 +56,17 @@ extract.performance = async tabId => {
         if (o.contentType?.startsWith('video/') || o.contentType?.startsWith('audio/')) {
           return true;
         }
-        if (['video', 'audio', 'other', 'xmlhttprequest'].includes(o.initiatorType)) {
+        if (['video', 'audio', 'other', 'xmlhttprequest', 'fetch'].includes(o.initiatorType)) {
+          if (o.name.includes('mime_type=video') ||
+              o.name.includes('bytestart=') ||
+              o.name.includes('fbcdn.net') ||
+              o.name.includes('cdninstagram.com') ||
+              o.name.includes('tiktokcdn.com') ||
+              o.name.includes('douyinvod.com') ||
+              o.name.includes('.mp4') ||
+              o.name.includes('.m3u8')) {
+            return true;
+          }
           for (const type of types) {
             if (o.name.includes('.' + type)) {
               return true;
@@ -162,6 +172,32 @@ extract.player = async tabId => {
               timeStamp: performance.timing.domComplete,
               source: 'SoundManager'
             });
+          }
+        }
+        catch (e) {}
+
+        // 原生 HTML5 Video 與 Audio 標籤
+        try {
+          for (const v of document.querySelectorAll('video, audio')) {
+            const src = v.currentSrc || v.src;
+            if (src && !src.startsWith('blob:')) {
+              list.push({
+                initiator: location.href,
+                url: new URL(src, location.href).href,
+                timeStamp: performance.timing.domComplete,
+                source: 'HTML5/Media'
+              });
+            }
+            for (const s of v.querySelectorAll('source')) {
+              if (s.src && !s.src.startsWith('blob:')) {
+                list.push({
+                  initiator: location.href,
+                  url: new URL(s.src, location.href).href,
+                  timeStamp: performance.timing.domComplete,
+                  source: 'HTML5/Source'
+                });
+              }
+            }
           }
         }
         catch (e) {}

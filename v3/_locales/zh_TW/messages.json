@@ -1,11 +1,11 @@
 {
   "app_name": {
-    "message": "HLS 串流影片下載器 (繁體中文版)"
+    "message": "HLS & 社群全能影片下載器 (支援 FB / IG / TikTok / M3U8)"
   },
   "description": {
-    "message": "自動偵測並以多執行緒高速下載網頁上的 M3U8 HLS 串流影片至本機硬碟，支援 AES-128 加密串流解密"
+    "message": "自動偵測並下載網頁上的 M3U8 串流影片，並支援 Facebook、Instagram、TikTok 影片、照片、Reels 與限時動態下載，支援讀取登入 Session 解析好友限定私人影片"
   },
   "action_title": {
-    "message": "下載 HLS 串流影片"
+    "message": "下載 HLS 串流與社群影音"
   }
 }

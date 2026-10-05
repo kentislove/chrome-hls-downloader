@@ -605,8 +605,53 @@ document.getElementById('hrefs').onsubmit = async e => {
   run(div, null, button);
 };
 
-/* 手動輸入影片 / M3U8 網址事件監聽 */
+/* 社群登入狀態儀表板與手動網址輸入處理 */
 {
+  const updateSocialStatus = () => {
+    try {
+      chrome.runtime.sendMessage({ method: 'check-social-sessions' }, res => {
+        if (!res) return;
+        const fbEl = document.getElementById('status-fb');
+        const igEl = document.getElementById('status-ig');
+        const ttEl = document.getElementById('status-tt');
+
+        if (fbEl && res.facebook) {
+          fbEl.className = 'social-badge ' + (res.facebook.loggedIn ? 'logged-in' : 'logged-out');
+          fbEl.innerHTML = `<span class="dot">${res.facebook.loggedIn ? '🟢' : '🔴'}</span> Facebook: ${res.facebook.loggedIn ? '已登入' : '未登入'}`;
+          fbEl.title = res.facebook.note;
+        }
+        if (igEl && res.instagram) {
+          igEl.className = 'social-badge ' + (res.instagram.loggedIn ? 'logged-in' : 'logged-out');
+          igEl.innerHTML = `<span class="dot">${res.instagram.loggedIn ? '🟢' : '🔴'}</span> Instagram: ${res.instagram.loggedIn ? '已登入' : '未登入'}`;
+          igEl.title = res.instagram.note;
+        }
+        if (ttEl && res.tiktok) {
+          ttEl.className = 'social-badge ' + (res.tiktok.loggedIn ? 'logged-in' : 'logged-out');
+          ttEl.innerHTML = `<span class="dot">${res.tiktok.loggedIn ? '🟢' : '🔴'}</span> TikTok: ${res.tiktok.loggedIn ? '已登入' : '未登入'}`;
+          ttEl.title = res.tiktok.note;
+        }
+        const dyEl = document.getElementById('status-dy');
+        if (dyEl && res.douyin) {
+          dyEl.className = 'social-badge ' + (res.douyin.loggedIn ? 'logged-in' : 'logged-out');
+          dyEl.innerHTML = `<span class="dot">${res.douyin.loggedIn ? '🟢' : '🔴'}</span> 抖音: ${res.douyin.loggedIn ? '已登入' : '未登入'}`;
+          dyEl.title = res.douyin.note;
+        }
+      });
+    } catch (e) {
+      console.warn('無法取得社群狀態：', e);
+    }
+  };
+
+  // 初次載入更新
+  updateSocialStatus();
+  const refreshBtn = document.getElementById('refresh-social-btn');
+  if (refreshBtn) {
+    refreshBtn.onclick = () => {
+      updateSocialStatus();
+      self.notify('已重新整理社群登入狀態！', 1500);
+    };
+  }
+
   const input = document.getElementById('manual-url-input');
   const btn = document.getElementById('manual-url-btn');
   if (input && btn) {
@@ -617,6 +662,38 @@ document.getElementById('hrefs').onsubmit = async e => {
         input.focus();
         return;
       }
+
+      // 判斷是否為 Facebook, Instagram, TikTok 或 抖音 網址
+      const isSocial = /facebook\.com|fb\.watch|instagram\.com|tiktok\.com|douyin\.com/i.test(raw);
+      if (isSocial) {
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = '解析串流中...';
+        self.notify('偵測到社群媒體網址，正在使用瀏覽器登入憑證解析真實串流...', 4000);
+
+        chrome.runtime.sendMessage({ method: 'parse-social-url', url: raw }, resp => {
+          btn.disabled = false;
+          btn.textContent = originalText;
+          if (resp && resp.result) {
+            const item = resp.result;
+            const entries = new Map();
+            entries.set(item.url, {
+              url: item.url,
+              meta: { name: item.title },
+              ext: item.ext || 'mp4'
+            });
+            addEntries(entries);
+            input.value = '';
+            self.notify(`成功解析並加入任務：${item.title}`, 3000);
+          } else {
+            const errMsg = (resp && resp.error) ? resp.error : '未知錯誤，請確認網址或已於該網站登入！';
+            self.notify(`解析失敗：${errMsg}`, 4500);
+          }
+        });
+        return;
+      }
+
+      // 一般 M3U8 或媒體網址直接加入
       try {
         const url = new URL(raw).href;
         const entries = new Map();
@@ -628,6 +705,7 @@ document.getElementById('hrefs').onsubmit = async e => {
         self.notify('網址格式無效，請確認是否包含 http:// 或 https://', 3000);
       }
     };
+
     btn.onclick = submitUrl;
     input.onkeydown = e => {
       if (e.key === 'Enter') {
@@ -637,3 +715,4 @@ document.getElementById('hrefs').onsubmit = async e => {
     };
   }
 }
+

@@ -26,6 +26,7 @@ if (typeof importScripts !== 'undefined') {
   self.importScripts('/plugins/blob-detector/tld.js');
   self.importScripts('/plugins/blob-detector/core.js');
   self.importScripts('/data/job/extract.js');
+  self.importScripts('social/session.js');
 }
 
 self.notify = (tabId, text, title) => {
@@ -114,11 +115,68 @@ const badge = (n, tabId) => {
   }
 };
 
+/* 分頁最新捕獲影音儲存庫 (支援 session 快取防休眠) */
+const capturedMediaByTab = new Map();
+
+// 初始化還原 session 快取
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.session) {
+  chrome.storage.session.get('capturedMedia', res => {
+    if (res && res.capturedMedia) {
+      for (const [k, v] of Object.entries(res.capturedMedia)) {
+        capturedMediaByTab.set(Number(k), v);
+      }
+    }
+  });
+}
+
+let persistTimer = null;
+function persistCapturedMedia() {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.session) {
+      const obj = {};
+      for (const [k, v] of capturedMediaByTab.entries()) {
+        obj[k] = v;
+      }
+      chrome.storage.session.set({ capturedMedia: obj }).catch(() => {});
+    }
+  }, 1000);
+}
+
 const observe = d => {
   // hard-coded excludes
   if (d.initiator && d.initiator.startsWith('https://www.youtube.com')) {
     return;
   }
+
+  // 記錄該分頁捕獲的媒體串流
+  if (d.tabId) {
+    let contentType = '';
+    if (d.responseHeaders && Array.isArray(d.responseHeaders)) {
+      const ct = d.responseHeaders.find(h => h.name && h.name.toLowerCase() === 'content-type');
+      if (ct) contentType = (ct.value || '').toLowerCase();
+    }
+
+    const u = d.url.toLowerCase();
+    const isAudio = contentType.startsWith('audio/') || u.includes('mime_type=audio') || u.includes('tag=sve_sound') || u.includes('tag=sve_audio');
+    const isVideo = contentType.startsWith('video/') || u.includes('mime_type=video') || u.includes('xpv_progressive') || u.includes('sve_hd') || u.includes('sve_sd');
+
+    const list = capturedMediaByTab.get(d.tabId) || [];
+    list.unshift({
+      url: d.url,
+      initiator: d.initiator,
+      timeStamp: Date.now(),
+      contentType: contentType,
+      isAudio: isAudio,
+      isVideo: isVideo,
+      isProgressive: u.includes('xpv_progressive') || (isVideo && !isAudio && u.includes('.mp4'))
+    });
+    if (list.length > 50) list.pop();
+    capturedMediaByTab.set(d.tabId, list);
+    persistCapturedMedia();
+  }
+
+  // unsupported content types
 
   // unsupported content types
   if (
@@ -240,6 +298,17 @@ let detectMedia = true;
         urls: types.map(s => '*://*/*.' + s + '*'),
         types: ['xmlhttprequest']
       }, 'xml on core types');
+
+      // 社群平台影音 CDN 與動態串流監聽 (Facebook, Instagram)
+      push({
+        urls: [
+          '*://*.fbcdn.net/*',
+          '*://*.cdninstagram.com/*',
+          '*://*/*bytestart=*'
+        ],
+        types: ['xmlhttprequest', 'media', 'other']
+      }, 'social media network stream');
+
       if (detectMedia) {
         install();
       }
@@ -296,6 +365,235 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
       tabId: sender.tab.id,
       initiator: sender.url
     });
+  }
+  else if (request.method === 'check-social-sessions') {
+    social.checkSessions().then(response);
+    return true; // 非同步回應
+  }
+  else if (request.method === 'parse-social-url') {
+    social.parseUrl(request.url)
+      .then(res => response({ result: res }))
+      .catch(err => response({ error: err.message }));
+    return true; // 非同步回應
+  }
+  else if (request.method === 'open-downloader-for-media') {
+    open(sender?.tab, [{ key: 'append', value: JSON.stringify(request.item) }]);
+    response({ success: true });
+  }
+  else if (request.method === 'open-downloader-current-tab') {
+    open(sender.tab);
+    response({ success: true });
+  }
+  else if (request.method === 'download-cached-file') {
+    chrome.downloads.download({
+      url: request.url,
+      filename: request.filename || `社群媒體_${Date.now()}.mp4`,
+      saveAs: Boolean(request.saveAs)
+    }, downloadId => {
+      if (chrome.runtime.lastError) {
+        response({ error: chrome.runtime.lastError.message });
+      } else {
+        response({ success: true, downloadId });
+      }
+    });
+    return true; // 非同步回應
+  }
+  else if (request.method === 'download-specific-post') {
+    social.parseUrl(request.postUrl)
+      .then(item => {
+        if (!item || !item.url) throw new Error('未能從該貼文中獲取可下載之媒體串流！');
+        const isUrlImage = item.url.includes('.jpg') || item.url.includes('.jpeg') || item.url.includes('.jfif') || item.url.includes('.webp');
+        if (request.isVideo && (item.ext !== 'mp4' || isUrlImage)) {
+          throw new Error('解析結果為靜態縮圖而非真實影片，已自動轉由前端即時接管錄製！');
+        }
+        const safeName = (request.filename || `${item.title || '社群媒體'}.${item.ext || 'mp4'}`).replace(/[\/\\:*?"<>|]/g, '_');
+        chrome.downloads.download({
+          url: item.url,
+          filename: safeName,
+          saveAs: false
+        }, downloadId => {
+          if (chrome.runtime.lastError) {
+            response({ error: chrome.runtime.lastError.message });
+          } else {
+            response({ success: true, downloadId, title: item.title, url: item.url });
+          }
+        });
+      })
+      .catch(err => {
+        response({ error: err.message });
+      });
+    return true; // 非同步回應
+  }
+  else if (request.method === 'get-active-audio') {
+    const tabId = sender?.tab?.id;
+    const list = capturedMediaByTab.get(tabId) || [];
+    // 找出最近捕獲的音效軌 (isAudio: true 且非圖片)
+    const audioEntry = list.find(m => m.isAudio && !m.url.includes('.jpg') && !m.url.includes('.png'));
+    if (audioEntry) {
+      response({ success: true, audioUrl: audioEntry.url });
+    } else {
+      // 保底尋找 sve_sound 或 audio 關鍵字
+      const fallback = list.find(m => m.url.includes('sve_sound') || m.url.includes('mime_type=audio') || m.url.includes('tag=sve_audio'));
+      response({ success: Boolean(fallback), audioUrl: fallback ? fallback.url : null });
+    }
+    return true;
+  }
+  else if (request.method === 'download-active-media') {
+    const tabId = sender?.tab?.id;
+    let list = capturedMediaByTab.get(tabId) || [];
+    let match = null;
+    let audioMatch = null;
+
+    // 清理網址中的分段 Range 限制，確保下載完整影片檔而非局部切片
+    const cleanVideoUrl = rawUrl => {
+      try {
+        const u = new URL(rawUrl);
+        u.searchParams.delete('bytestart');
+        u.searchParams.delete('byteend');
+        return u.href;
+      } catch (e) {
+        return rawUrl.replace(/([?&])bytestart=\d+(&?)/, '$1').replace(/([?&])byteend=\d+(&?)/, '$1');
+      }
+    };
+
+    // 嚴格過濾廣告穿插串流 (徹底排除 Facebook/Instagram 贊助預載)
+    const filterAds = pool => pool.filter(m => {
+      const u = m.url.toLowerCase();
+      if (u.includes('sponsored') || u.includes('is_ad=1') || u.includes('&ad_id=')) return false;
+      return true;
+    });
+
+    const now = Date.now();
+    // 【核心修復】：若為限時動態，只允許匹配最近 15 秒內剛剛請求的活躍串流，徹底消除第 1-1 部與歷史錯位！
+    let searchPool = filterAds(list);
+    if (request.isStory) {
+      const recentPool = searchPool.filter(m => (now - (m.timeStamp || 0)) < 15000);
+      if (recentPool.length > 0) {
+        searchPool = recentPool;
+      }
+    }
+
+    const reversedList = searchPool.slice().reverse();
+
+    if (request.targetUrl) {
+      match = { url: request.targetUrl, isProgressive: true };
+    } else if (request.postUrl) {
+      const idMatch = request.postUrl.match(/(?:reel\/|reels\/|videos\/|p\/|v=)(\w+)/);
+      const postId = idMatch ? idMatch[1] : null;
+
+      if (postId) {
+        // 優先比對包含該 ID 且為視訊的串流
+        match = reversedList.find(m => m.url.includes(postId) && (m.isProgressive || (m.isVideo && !m.isAudio))) ||
+                reversedList.find(m => m.url.includes(postId) && !m.isAudio);
+      }
+    }
+
+    if (!match) {
+      if (request.platform === 'Facebook') {
+        // 過濾合法的 Facebook 影音串流 (徹底排除圖片與純音效軌)
+        const getFbStreams = (pool) => pool.slice().reverse().filter(m => {
+          if (!m.url.includes('fbcdn.net')) return false;
+          const u = m.url.toLowerCase();
+          if (u.includes('.jpg') || u.includes('.jpeg') || u.includes('.png') || u.includes('.webp') || u.includes('.jfif')) return false;
+          return m.isVideo || u.includes('.mp4') || u.includes('sve_') || u.includes('xpv_');
+        });
+
+        let fbStreams = getFbStreams(searchPool);
+        if (fbStreams.length === 0 && searchPool !== list) {
+          fbStreams = getFbStreams(list); // 回退至全分頁佇列
+        }
+
+        // 1. 優先尋找完整音視訊合一 Progressive MP4 (必須非純音軌)
+        match = fbStreams.find(m => (m.isProgressive || m.url.includes('xpv_progressive') || m.url.includes('progressive')) && !m.isAudio);
+        
+        // 2. 若無 Progressive，強制只選畫面軌 (isVideo === true 且 isAudio === false)
+        if (!match && fbStreams.length > 0) {
+          const videoTrack = fbStreams.find(m => !m.isAudio && (m.isVideo || m.url.includes('sve_hd') || m.url.includes('sve_sd')));
+          const audioTrack = fbStreams.find(m => m.isAudio);
+
+          if (videoTrack) {
+            match = videoTrack;
+            if (audioTrack) {
+              audioMatch = audioTrack;
+            }
+          } else {
+            // 保底只選非音軌者
+            match = fbStreams.find(m => !m.isAudio) || fbStreams[0];
+          }
+        }
+      } else if (request.platform === 'Instagram') {
+        // 過濾合法的 Instagram 影音串流 (徹底排除圖片與純音軌)
+        const getIgStreams = (pool) => pool.slice().reverse().filter(m => {
+          if (!m.url.includes('cdninstagram.com') && !m.url.includes('fbcdn.net')) return false;
+          const u = m.url.toLowerCase();
+          if (u.includes('.jpg') || u.includes('.jpeg') || u.includes('.png') || u.includes('.webp') || u.includes('.jfif')) return false;
+          return u.includes('.mp4');
+        });
+
+        let igStreams = getIgStreams(searchPool);
+        if (igStreams.length === 0 && searchPool !== list) {
+          igStreams = getIgStreams(list); // 回退至全分頁佇列
+        }
+
+        match = igStreams.find(m => !m.isAudio) || igStreams[0];
+      } else {
+        match = reversedList.find(m => !m.isAudio && m.url.includes('.mp4')) || reversedList[0];
+      }
+    }
+
+    if (!match) {
+      response({ error: '尚未偵測到影片播放串流，請先讓影片播放 1~2 秒以利捕捉！' });
+      return true;
+    }
+
+    const fullUrl = cleanVideoUrl(match.url);
+    const baseName = request.filename ? request.filename.replace(/\.mp4$/i, '') : `${request.platform || '社群'}_影片_${Date.now()}`;
+
+    // 如果同時捕獲到視訊軌與音效軌 (Facebook DASH 雙軌)
+    if (audioMatch) {
+      const fullAudioUrl = cleanVideoUrl(audioMatch.url);
+      // 下載視訊軌
+      chrome.downloads.download({
+        url: fullUrl,
+        filename: `${baseName}_【畫面軌】.mp4`,
+        saveAs: false
+      });
+      // 同步下載音效軌
+      chrome.downloads.download({
+        url: fullAudioUrl,
+        filename: `${baseName}_【音效軌】.mp4`,
+        saveAs: false
+      }, downloadId => {
+        response({ success: true, isDualTrack: true, downloadId });
+      });
+      return true;
+    }
+
+    // 單一完整串流 (Progressive MP4 音畫合一)
+    chrome.downloads.download({
+      url: fullUrl,
+      filename: `${baseName}.mp4`,
+      saveAs: false
+    }, downloadId => {
+      if (chrome.runtime.lastError) {
+        response({ error: chrome.runtime.lastError.message });
+      } else {
+        response({ success: true, downloadId, url: fullUrl });
+      }
+    });
+    return true; // 非同步回應
+  }
+  else if (request.method === 'parse-and-open') {
+    social.parseUrl(request.url)
+      .then(item => {
+        open(sender?.tab, [{ key: 'append', value: JSON.stringify(item) }]);
+        response({ success: true, item });
+      })
+      .catch(err => {
+        console.warn('社群媒體背景解析失敗：', err);
+        response({ error: err.message });
+      });
+    return true; // 非同步回應
   }
 });
 

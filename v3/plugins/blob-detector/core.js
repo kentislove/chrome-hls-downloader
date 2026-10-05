@@ -27,8 +27,6 @@ bbdetector.mime = {
       if ((name === 'content-type' || name === 'Content-Type') && value && (
         value.startsWith('video/') || value.startsWith('audio/')
       )) {
-        console.log(d);
-
         return observe(d);
       }
     }
@@ -42,7 +40,7 @@ bbdetector.activate = async () => {
   }
   bbdetector.busy = true;
   const prefs = await chrome.storage.local.get({
-    'mime-watch': false,
+    'mime-watch': true,
     'detect-media': true,
     'mime-watch-scope-mode': 'all',
     'mime-watch-allowlist': []
